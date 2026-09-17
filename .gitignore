@@ -21,5 +21,7 @@ _deps/
 *.swo
 
 # Python generated files
+.venv/
 __pycache__/
 *.py[cod]
+.tmp/ml/
