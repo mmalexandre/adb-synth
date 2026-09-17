@@ -4,6 +4,11 @@
 
 #include "SynthEngine.h"
 
+#include <atomic>
+#include <memory>
+#include <mutex>
+#include <vector>
+
 class AdbSynthAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -33,12 +38,27 @@ public:
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
+    bool loadAudioFile(const juce::File& file);
+    juce::File getLoadedAudioFile() const;
+    std::vector<float> getWaveform() const;
+    void triggerFilePlayback();
+    void setSynthHeld(bool held);
+    bool runModelGuess(const juce::File& file, juce::String& result, juce::String& error) const;
+
     juce::AudioProcessorValueTreeState parameters;
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     adbsynth::SynthEngine engine;
+    juce::AudioFormatManager formatManager;
+    std::shared_ptr<const juce::AudioBuffer<float>> loadedAudio;
+    std::atomic<int> playbackPosition { 0 };
+    std::atomic<bool> filePlaybackActive { false };
+    std::atomic<bool> synthHeld { false };
+    mutable std::mutex audioStateMutex;
+    juce::File loadedAudioFile;
+    std::vector<float> waveform;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AdbSynthAudioProcessor)
 };

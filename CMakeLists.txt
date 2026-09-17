@@ -52,6 +52,7 @@ juce_generate_juce_header(AdbSynth)
 
 target_compile_definitions(AdbSynth
     PUBLIC
+        ADBSYNTH_PROJECT_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
         JUCE_VST3_CAN_REPLACE_VST2=0
