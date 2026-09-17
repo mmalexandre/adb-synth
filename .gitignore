@@ -19,3 +19,7 @@ _deps/
 .DS_Store
 *.swp
 *.swo
+
+# Python generated files
+__pycache__/
+*.py[cod]
