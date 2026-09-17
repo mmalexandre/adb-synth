@@ -12,6 +12,20 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(JUCE)
 
+# Shared, JUCE-free DSP + parameter schema, linked by both the plugin and the offline renderer.
+add_library(adbsynth_core STATIC
+    Source/SynthEngine.cpp
+    Source/SynthEngine.h
+    Source/ParameterSchema.h
+)
+
+target_include_directories(adbsynth_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+target_compile_features(adbsynth_core PUBLIC cxx_std_17)
+set_target_properties(adbsynth_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+add_executable(AdbSynthRender Tools/RenderCLI.cpp)
+target_link_libraries(AdbSynthRender PRIVATE adbsynth_core)
+
 juce_add_plugin(AdbSynth
     COMPANY_NAME "AdbSynth"
     BUNDLE_ID com.adbsynth.oscillator
@@ -45,6 +59,7 @@ target_compile_definitions(AdbSynth
 
 target_link_libraries(AdbSynth
     PRIVATE
+        adbsynth_core
         juce::juce_audio_utils
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

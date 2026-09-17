@@ -1,14 +1,13 @@
 # AdbSynth
 
-Minimal JUCE sine oscillator with one automatable parameter: `frequency`.
+Minimal JUCE sine oscillator with one automatable parameter: `frequency`, continuous over the
+audible range (20 Hz - 20 kHz, logarithmic).
 
-The standalone and plug-in editor contains one rotary knob. Turn it to select one of these frequencies:
+The standalone and plug-in editor contains one rotary knob showing the frequency in Hz.
 
-- 220 Hz
-- 261.63 Hz
-- 440 Hz
-- 523.25 Hz
-- 880 Hz
+The parameter list lives in [Source/ParameterSchema.h](Source/ParameterSchema.h) and is the single
+source of truth: the plug-in builds its parameter layout from it, and `AdbSynthRender` exports it as
+JSON for the training pipeline in [ml/](ml/).
 
 ## Build
 
@@ -20,3 +19,17 @@ cmake --build build --config Release
 ```
 
 JUCE is downloaded by CMake into its dependency cache during configuration.
+
+## Offline renderer
+
+`AdbSynthRender` shares its DSP with the plug-in, so datasets always match what the plug-in plays.
+
+```sh
+./build/AdbSynthRender --dump-schema
+./build/AdbSynthRender --manifest patches.jsonl --outdir data/
+```
+
+## Parameter inference
+
+See [ml/README.md](ml/README.md) for generating a dataset and training the model that estimates the
+synth parameters from a short audio sample.

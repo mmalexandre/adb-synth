@@ -1,14 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-#include <array>
 #include <cmath>
-
-namespace
-{
-constexpr double twoPi = juce::MathConstants<double>::twoPi;
-constexpr std::array<double, 5> frequencies { 220.0, 261.63, 440.0, 523.25, 880.0 };
-}
 
 AdbSynthAudioProcessor::AdbSynthAudioProcessor()
     : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
@@ -20,11 +13,51 @@ juce::AudioProcessorValueTreeState::ParameterLayout AdbSynthAudioProcessor::crea
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
-        "frequency",
-        "Frequency",
-        juce::StringArray { "220 Hz", "261.63 Hz", "440 Hz", "523.25 Hz", "880 Hz" },
-        2));
+    for (const auto& descriptor : adbsynth::parameterSchema)
+    {
+        switch (descriptor.kind)
+        {
+            case adbsynth::ParameterKind::Float:
+            {
+                juce::NormalisableRange<float> range(descriptor.minValue, descriptor.maxValue);
+
+                if (descriptor.logScale)
+                    range.setSkewForCentre(std::sqrt(descriptor.minValue * descriptor.maxValue));
+
+                layout.add(std::make_unique<juce::AudioParameterFloat>(
+                    juce::ParameterID { descriptor.id, 1 },
+                    descriptor.label,
+                    range,
+                    descriptor.defaultValue,
+                    juce::AudioParameterFloatAttributes().withLabel(descriptor.unit)));
+                break;
+            }
+
+            case adbsynth::ParameterKind::Choice:
+            {
+                juce::StringArray choices;
+
+                for (int choice = 0; choice < descriptor.numChoices; ++choice)
+                    choices.add(descriptor.choices[choice]);
+
+                layout.add(std::make_unique<juce::AudioParameterChoice>(
+                    juce::ParameterID { descriptor.id, 1 },
+                    descriptor.label,
+                    choices,
+                    static_cast<int>(descriptor.defaultValue)));
+                break;
+            }
+
+            case adbsynth::ParameterKind::Bool:
+            {
+                layout.add(std::make_unique<juce::AudioParameterBool>(
+                    juce::ParameterID { descriptor.id, 1 },
+                    descriptor.label,
+                    descriptor.defaultValue > 0.5f));
+                break;
+            }
+        }
+    }
 
     return layout;
 }
@@ -79,8 +112,7 @@ void AdbSynthAudioProcessor::changeProgramName(int, const juce::String&)
 
 void AdbSynthAudioProcessor::prepareToPlay(double sampleRate, int)
 {
-    currentSampleRate = sampleRate;
-    phase = 0.0;
+    engine.prepare(sampleRate);
 }
 
 void AdbSynthAudioProcessor::releaseResources()
@@ -95,19 +127,10 @@ bool AdbSynthAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) 
 
 void AdbSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
-    const auto frequencyIndex = static_cast<int>(*parameters.getRawParameterValue("frequency"));
-    const auto frequency = frequencies[static_cast<size_t>(juce::jlimit(0, static_cast<int>(frequencies.size()) - 1, frequencyIndex))];
-    const auto phaseStep = twoPi * frequency / currentSampleRate;
-    const auto outputGain = 0.15f;
+    adbsynth::SynthParams params;
+    params.frequency = parameters.getRawParameterValue("frequency")->load();
 
-    for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
-    {
-        const auto value = static_cast<float>(std::sin(phase)) * outputGain;
-        phase = std::fmod(phase + phaseStep, twoPi);
-
-        for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
-            buffer.setSample(channel, sample, value);
-    }
+    engine.render(buffer.getArrayOfWritePointers(), buffer.getNumChannels(), buffer.getNumSamples(), params);
 }
 
 bool AdbSynthAudioProcessor::hasEditor() const

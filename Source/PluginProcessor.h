@@ -2,6 +2,8 @@
 
 #include <JuceHeader.h>
 
+#include "SynthEngine.h"
+
 class AdbSynthAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -36,8 +38,7 @@ public:
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    double currentSampleRate = 44100.0;
-    double phase = 0.0;
+    adbsynth::SynthEngine engine;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AdbSynthAudioProcessor)
 };
