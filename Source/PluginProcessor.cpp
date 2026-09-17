@@ -1,11 +1,13 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#include <array>
 #include <cmath>
 
 namespace
 {
 constexpr double twoPi = juce::MathConstants<double>::twoPi;
+constexpr std::array<double, 5> frequencies { 220.0, 261.63, 440.0, 523.25, 880.0 };
 }
 
 AdbSynthAudioProcessor::AdbSynthAudioProcessor()
@@ -18,12 +20,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout AdbSynthAudioProcessor::crea
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
         "frequency",
         "Frequency",
-        juce::NormalisableRange<float>(55.0f, 1760.0f, 0.01f, 0.5f),
-        440.0f,
-        "Hz"));
+        juce::StringArray { "220 Hz", "261.63 Hz", "440 Hz", "523.25 Hz", "880 Hz" },
+        2));
 
     return layout;
 }
@@ -94,7 +95,8 @@ bool AdbSynthAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) 
 
 void AdbSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
-    const auto frequency = static_cast<double>(*parameters.getRawParameterValue("frequency"));
+    const auto frequencyIndex = static_cast<int>(*parameters.getRawParameterValue("frequency"));
+    const auto frequency = frequencies[static_cast<size_t>(juce::jlimit(0, static_cast<int>(frequencies.size()) - 1, frequencyIndex))];
     const auto phaseStep = twoPi * frequency / currentSampleRate;
     const auto outputGain = 0.15f;
 

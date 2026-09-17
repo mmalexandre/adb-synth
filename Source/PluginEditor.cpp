@@ -1,21 +1,21 @@
 #include "PluginEditor.h"
 
-#include <array>
-
-namespace
-{
-constexpr std::array<float, 5> frequencies { 220.0f, 261.63f, 440.0f, 523.25f, 880.0f };
-}
-
 AdbSynthAudioProcessorEditor::AdbSynthAudioProcessorEditor(AdbSynthAudioProcessor& audioProcessor)
     : AudioProcessorEditor(&audioProcessor), processor(audioProcessor)
 {
-    setSize(280, 120);
+    setSize(180, 180);
 
-    frequencyButton.setButtonText({});
-    frequencyButton.onClick = [this] { tuneToNextFrequency(); };
-    addAndMakeVisible(frequencyButton);
-    updateButtonText();
+    frequencyKnob.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    frequencyKnob.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+    frequencyKnob.setRange(0.0, 4.0, 1.0);
+    frequencyKnob.setNumDecimalPlacesToDisplay(0);
+    frequencyKnob.setTooltip("Frequency");
+    addAndMakeVisible(frequencyKnob);
+
+    frequencyAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        processor.parameters,
+        "frequency",
+        frequencyKnob);
 }
 
 void AdbSynthAudioProcessorEditor::paint(juce::Graphics& graphics)
@@ -25,20 +25,5 @@ void AdbSynthAudioProcessorEditor::paint(juce::Graphics& graphics)
 
 void AdbSynthAudioProcessorEditor::resized()
 {
-    frequencyButton.setBounds(getLocalBounds().reduced(24));
-}
-
-void AdbSynthAudioProcessorEditor::tuneToNextFrequency()
-{
-    selectedFrequency = (selectedFrequency + 1) % static_cast<int>(frequencies.size());
-
-    if (auto* parameter = dynamic_cast<juce::RangedAudioParameter*>(processor.parameters.getParameter("frequency")))
-        parameter->setValueNotifyingHost(parameter->convertTo0to1(frequencies[static_cast<size_t>(selectedFrequency)]));
-
-    updateButtonText();
-}
-
-void AdbSynthAudioProcessorEditor::updateButtonText()
-{
-    frequencyButton.setButtonText("Tune " + juce::String(frequencies[static_cast<size_t>(selectedFrequency)], 2) + " Hz");
+    frequencyKnob.setBounds(getLocalBounds().reduced(24));
 }

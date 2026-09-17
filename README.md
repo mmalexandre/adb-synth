@@ -2,7 +2,7 @@
 
 Minimal JUCE sine oscillator with one automatable parameter: `frequency`.
 
-The standalone and plug-in editor contains one button. Each click tunes the oscillator to the next frequency in this set:
+The standalone and plug-in editor contains one rotary knob. Turn it to select one of these frequencies:
 
 - 220 Hz
 - 261.63 Hz
