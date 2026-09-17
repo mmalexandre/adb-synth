@@ -1,12 +1,13 @@
 #include "PluginEditor.h"
 
 #include <cmath>
+#include <iostream>
 #include <thread>
 
 AdbSynthAudioProcessorEditor::AdbSynthAudioProcessorEditor(AdbSynthAudioProcessor& audioProcessor)
     : AudioProcessorEditor(&audioProcessor), processor(audioProcessor)
 {
-    setSize(420, 470);
+    setSize(420, 550);
 
     const auto& descriptor = adbsynth::parameterSchema[0];
 
@@ -40,6 +41,13 @@ AdbSynthAudioProcessorEditor::AdbSynthAudioProcessorEditor(AdbSynthAudioProcesso
     guessLabel.setJustificationType(juce::Justification::centredLeft);
     fileLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
     guessLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
+    sourceOfTruthEditor.setMultiLine(true);
+    sourceOfTruthEditor.setReadOnly(true);
+    sourceOfTruthEditor.setScrollbarsShown(true);
+    sourceOfTruthEditor.setColour(juce::TextEditor::backgroundColourId, juce::Colour(0xff1b242b));
+    sourceOfTruthEditor.setColour(juce::TextEditor::textColourId, juce::Colours::lightgrey);
+    addAndMakeVisible(sourceOfTruthEditor);
+    sourceOfTruthEditor.setText("Source of truth unavailable", false);
     startTimerHz(10);
 }
 
@@ -74,6 +82,8 @@ void AdbSynthAudioProcessorEditor::resized()
     fileLabel.setBounds(area.removeFromTop(22));
     guessLabel.setBounds(area.removeFromTop(22));
     area.removeFromTop(8);
+    sourceOfTruthEditor.setBounds(area.removeFromTop(70));
+    area.removeFromTop(8);
     playFileButton.setBounds(area.removeFromTop(34).removeFromLeft(125));
     playSynthButton.setBounds(area.removeFromTop(34).removeFromLeft(125));
 }
@@ -82,7 +92,54 @@ void AdbSynthAudioProcessorEditor::timerCallback()
 {
     const auto file = processor.getLoadedAudioFile();
     fileLabel.setText(file.existsAsFile() ? file.getFileName() : "No audio file loaded", juce::dontSendNotification);
+    if (file != sourceOfTruthForFile)
+    {
+        sourceOfTruthForFile = file;
+        updateSourceOfTruth(file);
+    }
     repaint();
+}
+
+void AdbSynthAudioProcessorEditor::updateSourceOfTruth(const juce::File& file)
+{
+    if (!file.existsAsFile())
+    {
+        sourceOfTruthEditor.setText("Source of truth unavailable", false);
+        return;
+    }
+
+    const auto labelsFile = juce::File(ADBSYNTH_PROJECT_DIR).getChildFile(".tmp/ml/train/labels.jsonl");
+    juce::FileInputStream stream(labelsFile);
+    if (!stream.openedOk())
+    {
+        sourceOfTruthEditor.setText("Source of truth unavailable", false);
+        return;
+    }
+
+    juce::var label;
+    while (!stream.isExhausted())
+    {
+        const auto line = stream.readNextLine();
+        juce::var candidate;
+        if (juce::JSON::parse(line, candidate).wasOk() && candidate.isObject()
+            && candidate.getDynamicObject()->getProperty("file").toString() == file.getFileName())
+        {
+            label = candidate;
+            break;
+        }
+    }
+
+    if (!label.isObject())
+    {
+        sourceOfTruthEditor.setText("Source of truth unavailable", false);
+        return;
+    }
+
+    auto parameters = std::make_unique<juce::DynamicObject>();
+    for (const auto& descriptor : adbsynth::parameterSchema)
+        parameters->setProperty(descriptor.id, label.getDynamicObject()->getProperty(descriptor.id));
+
+    sourceOfTruthEditor.setText(juce::JSON::toString(juce::var(parameters.release()), true), false);
 }
 
 void AdbSynthAudioProcessorEditor::chooseFile()
@@ -134,6 +191,9 @@ void AdbSynthAudioProcessorEditor::updateGuess(const juce::String& output, const
     juce::var parsed;
     if (juce::JSON::parse(output, parsed).failed() || !parsed.isObject())
     {
+        std::cerr << "[AdbSynth] Model returned invalid output:\n---\n"
+                  << output.toStdString()
+                  << "\n---" << std::endl;
         guessLabel.setText("The model returned invalid output.", juce::dontSendNotification);
         return;
     }

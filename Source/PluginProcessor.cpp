@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cstdlib>
+#include <iostream>
 
 #ifndef ADBSYNTH_PROJECT_DIR
 #define ADBSYNTH_PROJECT_DIR "."
@@ -261,7 +262,8 @@ bool AdbSynthAudioProcessor::runModelGuess(const juce::File& file, juce::String&
     juce::ChildProcess process;
     const auto command = "PYTHONPATH=" + projectDirectory.getChildFile("ml").getFullPathName().quoted()
         + " " + python.quoted() + " " + script.getFullPathName().quoted() + " " + file.getFullPathName().quoted()
-        + " --schema " + schema.getFullPathName().quoted() + " --checkpoint " + checkpoint.getFullPathName().quoted();
+        + " --schema " + schema.getFullPathName().quoted() + " --checkpoint " + checkpoint.getFullPathName().quoted()
+        + " 2>&1";
 
     if (!process.start(command))
     {
@@ -272,9 +274,15 @@ bool AdbSynthAudioProcessor::runModelGuess(const juce::File& file, juce::String&
     process.waitForProcessToFinish(-1);
     result = process.readAllProcessOutput();
 
-    if (process.getExitCode() != 0)
+    const auto exitCode = process.getExitCode();
+    if (exitCode != 0)
     {
+        std::cerr << "[AdbSynth] Model process exited with code " << exitCode << ":\n---\n"
+                  << result.toStdString()
+                  << "\n---" << std::endl;
         error = result.trim();
+        if (error.isEmpty())
+            error = "The model process exited with code " + juce::String(exitCode) + ".";
         return false;
     }
 

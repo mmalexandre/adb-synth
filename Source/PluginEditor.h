@@ -16,6 +16,7 @@ private:
     void timerCallback() override;
     void chooseFile();
     void guessParameters();
+    void updateSourceOfTruth(const juce::File&);
     void updateGuess(const juce::String& output, const juce::String& error);
     void drawWaveform(juce::Graphics&, juce::Rectangle<int>) const;
 
@@ -28,6 +29,8 @@ private:
     juce::TextButton playSynthButton { "Hold synth" };
     juce::Label fileLabel;
     juce::Label guessLabel;
+    juce::TextEditor sourceOfTruthEditor;
+    juce::File sourceOfTruthForFile;
     std::thread guessThread;
     std::atomic<bool> guessRunning { false };
 
