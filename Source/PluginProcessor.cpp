@@ -2,8 +2,10 @@
 #include "PluginEditor.h"
 
 #include <cmath>
-#include <cstdlib>
 #include <iostream>
+#include <torch/script.h>
+
+#include <cstdlib>
 
 #ifndef ADBSYNTH_PROJECT_DIR
 #define ADBSYNTH_PROJECT_DIR "."
@@ -246,47 +248,48 @@ void AdbSynthAudioProcessor::setSynthHeld(bool held)
 
 bool AdbSynthAudioProcessor::runModelGuess(const juce::File& file, juce::String& result, juce::String& error) const
 {
-    const juce::File projectDirectory(ADBSYNTH_PROJECT_DIR);
-    const auto configuredPython = std::getenv("ML_PYTHON");
-    const auto python = configuredPython != nullptr ? juce::String(configuredPython) : juce::String("python3");
-    const auto schema = projectDirectory.getChildFile(".tmp/ml/train/schema.json");
-    const auto checkpoint = projectDirectory.getChildFile("ml/checkpoints/model.pt");
-    const auto script = projectDirectory.getChildFile("ml/predict.py");
-
-    if (!script.existsAsFile() || !schema.existsAsFile() || !checkpoint.existsAsFile())
+    const juce::File modelFile(ADBSYNTH_TORCH_MODEL);
+    if (!modelFile.existsAsFile())
     {
-        error = "Model files are missing. Run make ml-data and make ml-train first.";
+        error = "Native model is missing. Run make ml-export after training.";
         return false;
     }
 
-    juce::ChildProcess process;
-    const auto command = "PYTHONPATH=" + projectDirectory.getChildFile("ml").getFullPathName().quoted()
-        + " " + python.quoted() + " " + script.getFullPathName().quoted() + " " + file.getFullPathName().quoted()
-        + " --schema " + schema.getFullPathName().quoted() + " --checkpoint " + checkpoint.getFullPathName().quoted()
-        + " 2>&1";
-
-    if (!process.start(command))
+    const auto audio = std::atomic_load_explicit(&loadedAudio, std::memory_order_acquire);
+    if (audio == nullptr || file != getLoadedAudioFile())
     {
-        error = "Could not start the model process.";
+        error = "Audio is no longer loaded.";
         return false;
     }
 
-    process.waitForProcessToFinish(-1);
-    result = process.readAllProcessOutput();
-
-    const auto exitCode = process.getExitCode();
-    if (exitCode != 0)
+    try
     {
-        std::cerr << "[AdbSynth] Model process exited with code " << exitCode << ":\n---\n"
-                  << result.toStdString()
-                  << "\n---" << std::endl;
-        error = result.trim();
-        if (error.isEmpty())
-            error = "The model process exited with code " + juce::String(exitCode) + ".";
+        constexpr int clipSamples = 16384;
+        std::vector<float> clip(static_cast<std::size_t>(clipSamples), 0.0f);
+        const auto sourceLength = audio->getNumSamples();
+        const auto start = std::max(0, (sourceLength - clipSamples) / 2);
+        const auto samplesToCopy = std::min(clipSamples, sourceLength - start);
+        if (samplesToCopy > 0)
+            std::copy_n(audio->getReadPointer(0, start), samplesToCopy, clip.begin());
+
+        auto input = torch::from_blob(clip.data(), { 1, clipSamples }, torch::kFloat32).clone();
+        torch::jit::script::Module model = torch::jit::load(modelFile.getFullPathName().toStdString());
+        model.eval();
+        torch::NoGradGuard noGrad;
+        const auto outputs = model.forward({ input }).toTuple()->elements();
+
+        auto* object = new juce::DynamicObject();
+        for (std::size_t index = 0; index < adbsynth::parameterSchema.size(); ++index)
+            object->setProperty(adbsynth::parameterSchema[index].id, outputs[index].toTensor().item<float>());
+        result = juce::JSON::toString(juce::var(object));
+        return true;
+    }
+    catch (const c10::Error& exception)
+    {
+        error = "Native model inference failed: " + juce::String(exception.what());
+        std::cerr << "[AdbSynth] " << error << std::endl;
         return false;
     }
-
-    return true;
 }
 
 bool AdbSynthAudioProcessor::hasEditor() const

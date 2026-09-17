@@ -14,7 +14,7 @@ ML_COUNT ?= 20000
 ML_EPOCHS ?= 20
 ML_CHECKPOINT ?= ml/checkpoints/model.pt
 
-.PHONY: all configure build run clean ml-data ml-train ml-predict ml-clean
+.PHONY: all configure build run clean ml-data ml-train ml-export ml-predict ml-clean
 
 all: build
 
@@ -35,6 +35,11 @@ ml-data: build $(ML_VENV_STAMP)
 
 ml-train: ml-data
 	PYTHONPATH=ml $(ML_PYTHON) ml/train.py --data $(ML_DATA_DIR) --epochs $(ML_EPOCHS) --checkpoint $(ML_CHECKPOINT)
+
+ml-export:
+	@test -f "$(ML_CHECKPOINT)" || (echo "Checkpoint not found: $(ML_CHECKPOINT)" && exit 1)
+	@test -f "$(ML_DATA_DIR)/schema.json" || (echo "Schema not found: $(ML_DATA_DIR)/schema.json; run make ml-data first" && exit 1)
+	PYTHONPATH=ml $(ML_PYTHON) ml/export_torchscript.py --schema $(ML_DATA_DIR)/schema.json --checkpoint $(ML_CHECKPOINT) --output $(ML_TMP_DIR)/model_scripted.pt
 
 ml-predict:
 	@test -n "$(AUDIO)" || (echo "Usage: make ml-predict AUDIO=sample.wav" && exit 1)
