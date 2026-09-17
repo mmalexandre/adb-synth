@@ -22,6 +22,7 @@ _deps/
 
 # Python generated files
 .venv/
+ml/checkpoints/
 __pycache__/
 *.py[cod]
 .tmp/ml/

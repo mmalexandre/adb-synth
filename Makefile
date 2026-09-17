@@ -1,7 +1,13 @@
 BUILD_DIR := build
 CONFIG := Release
 STANDALONE_APP := $(BUILD_DIR)/AdbSynth_artefacts/Standalone/AdbSynth
-ML_PYTHON ?= python3
+ML_BOOTSTRAP_PYTHON ?= python3
+ML_VENV ?= .venv
+ML_PYTHON ?= $(ML_VENV)/bin/python
+ML_REQUIREMENTS := ml/requirements.txt
+ML_TORCH_REQUIREMENTS := ml/requirements-torch.txt
+ML_TORCH_INDEX_URL ?= https://download.pytorch.org/whl/cpu
+ML_VENV_STAMP := $(ML_VENV)/.requirements-installed
 ML_TMP_DIR ?= .tmp/ml
 ML_DATA_DIR ?= $(ML_TMP_DIR)/train
 ML_COUNT ?= 20000
@@ -24,7 +30,7 @@ run: build
 clean:
 	rm -rf $(BUILD_DIR)
 
-ml-data: build
+ml-data: build $(ML_VENV_STAMP)
 	PYTHONPATH=ml $(ML_PYTHON) ml/generate.py --renderer $(BUILD_DIR)/AdbSynthRender --outdir $(ML_DATA_DIR) --count $(ML_COUNT)
 
 ml-train: ml-data
@@ -38,3 +44,9 @@ ml-predict:
 
 ml-clean:
 	rm -rf $(ML_TMP_DIR) $(ML_CHECKPOINT)
+
+$(ML_VENV_STAMP): $(ML_REQUIREMENTS) $(ML_TORCH_REQUIREMENTS)
+	$(ML_BOOTSTRAP_PYTHON) -m venv $(ML_VENV)
+	$(ML_PYTHON) -m pip install -r $(ML_REQUIREMENTS)
+	$(ML_PYTHON) -m pip install --index-url $(ML_TORCH_INDEX_URL) -r $(ML_TORCH_REQUIREMENTS)
+	touch $@
