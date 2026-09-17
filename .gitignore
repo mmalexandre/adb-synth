@@ -1,0 +1,22 @@
+# CMake and build output
+build/
+build-*/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+_deps/
+
+# JUCE generated artifacts
+*.vst3/
+*.component/
+*.app/
+
+# IDE and platform files
+.cache/
+.idea/
+.DS_Store
+*.swp
+*.swo
