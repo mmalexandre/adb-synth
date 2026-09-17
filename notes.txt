@@ -1,0 +1,4 @@
+17/09/2026
+----------
+
+- Would it be an idea to guess on a rolling window?
