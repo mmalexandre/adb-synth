@@ -2,3 +2,8 @@
 ----------
 
 - Would it be an idea to guess on a rolling window?
+
+
+- Start from a user selected preset
+- Train on several samples (several spectrograms as a source of truth instead of one)
+- Create specialized submodels to handle only a few params, instead of a big one

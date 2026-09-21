@@ -7,7 +7,14 @@
 AdbSynthAudioProcessorEditor::AdbSynthAudioProcessorEditor(AdbSynthAudioProcessor& audioProcessor)
     : AudioProcessorEditor(&audioProcessor), processor(audioProcessor)
 {
-    setSize(420, 550);
+    setSize(420, 660);
+
+    const auto loadedFile = processor.getLoadedAudioFile();
+    if (loadedFile.existsAsFile())
+    {
+        lastAudioDirectory = loadedFile.getParentDirectory();
+        updateFolderFiles(lastAudioDirectory);
+    }
 
     const auto& descriptor = adbsynth::parameterSchema[0];
 
@@ -51,11 +58,15 @@ AdbSynthAudioProcessorEditor::AdbSynthAudioProcessorEditor(AdbSynthAudioProcesso
     addAndMakeVisible(playSynthButton);
     addAndMakeVisible(fileLabel);
     addAndMakeVisible(guessLabel);
+    addAndMakeVisible(folderFilesList);
 
     fileLabel.setJustificationType(juce::Justification::centredLeft);
     guessLabel.setJustificationType(juce::Justification::centredLeft);
     fileLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
     guessLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
+    folderFilesList.setRowHeight(22);
+    folderFilesList.setColour(juce::ListBox::backgroundColourId, juce::Colour(0xff1b242b));
+    folderFilesList.setColour(juce::ListBox::outlineColourId, juce::Colour(0xff34434d));
     sourceOfTruthEditor.setMultiLine(true);
     sourceOfTruthEditor.setReadOnly(true);
     sourceOfTruthEditor.setScrollbarsShown(true);
@@ -98,6 +109,8 @@ void AdbSynthAudioProcessorEditor::resized()
     guessButton.setBounds(modelRow.removeFromLeft(125));
     fileLabel.setBounds(area.removeFromTop(22));
     guessLabel.setBounds(area.removeFromTop(22));
+    area.removeFromTop(8);
+    folderFilesList.setBounds(area.removeFromTop(110));
     area.removeFromTop(8);
     sourceOfTruthEditor.setBounds(area.removeFromTop(70));
     area.removeFromTop(8);
@@ -161,14 +174,66 @@ void AdbSynthAudioProcessorEditor::updateSourceOfTruth(const juce::File& file)
 
 void AdbSynthAudioProcessorEditor::chooseFile()
 {
-    auto chooser = std::make_shared<juce::FileChooser>("Select audio file", juce::File {}, "*.wav;*.aif;*.aiff;*.flac;*.ogg");
+    auto chooser = std::make_shared<juce::FileChooser>("Select audio file", lastAudioDirectory,
+                                                       "*.wav;*.aif;*.aiff;*.flac;*.ogg");
     chooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
                          [this, chooser] (const juce::FileChooser& result)
                          {
                              const auto file = result.getResult();
-                             if (file.existsAsFile() && !processor.loadAudioFile(file))
-                                 guessLabel.setText("Could not load that audio file.", juce::dontSendNotification);
+                             if (file.existsAsFile())
+                                 loadSelectedFile(file);
                          });
+}
+
+int AdbSynthAudioProcessorEditor::getNumRows()
+{
+    return folderFiles.size();
+}
+
+void AdbSynthAudioProcessorEditor::paintListBoxItem(int rowNumber, juce::Graphics& graphics,
+                                                    int width, int height, bool rowIsSelected)
+{
+    if (!juce::isPositiveAndBelow(rowNumber, folderFiles.size()))
+        return;
+
+    graphics.fillAll(rowIsSelected ? juce::Colour(0xff315c54) : juce::Colour(0xff1b242b));
+    graphics.setColour(juce::Colours::lightgrey);
+    graphics.drawText(folderFiles.getReference(rowNumber).getFileName(), 8, 0, width - 16, height,
+                      juce::Justification::centredLeft, true);
+}
+
+void AdbSynthAudioProcessorEditor::listBoxItemClicked(int row, const juce::MouseEvent&)
+{
+    if (juce::isPositiveAndBelow(row, folderFiles.size()))
+        loadSelectedFile(folderFiles.getReference(row));
+}
+
+void AdbSynthAudioProcessorEditor::updateFolderFiles(const juce::File& directory)
+{
+    folderFiles.clear();
+    if (directory.isDirectory())
+    {
+        directory.findChildFiles(folderFiles, juce::File::findFiles, false,
+                                 "*.wav;*.aif;*.aiff;*.flac;*.ogg");
+        struct FileComparator
+        {
+            int compareElements(const juce::File& first, const juce::File& second) const
+            {
+                return first.getFileName().compareNatural(second.getFileName());
+            }
+        };
+        FileComparator compareFiles;
+        folderFiles.sort(compareFiles);
+    }
+    folderFilesList.updateContent();
+}
+
+void AdbSynthAudioProcessorEditor::loadSelectedFile(const juce::File& file)
+{
+    lastAudioDirectory = file.getParentDirectory();
+    updateFolderFiles(lastAudioDirectory);
+    if (!processor.loadAudioFile(file))
+        guessLabel.setText("Could not load that audio file.", juce::dontSendNotification);
 }
 
 void AdbSynthAudioProcessorEditor::guessParameters()

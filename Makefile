@@ -39,7 +39,8 @@ ml-renderer:
 
 
 ml-data:
-	@if test -f "$(ML_DATA_DIR)/labels.jsonl" && test -f "$(ML_DATA_DIR)/schema.json" && test "$$(wc -l < "$(ML_DATA_DIR)/labels.jsonl")" -eq "$(ML_COUNT)"; then \
+	@$(MAKE) ml-renderer; \
+	if test -f "$(ML_DATA_DIR)/labels.jsonl" && test -f "$(ML_DATA_DIR)/schema.json" && test "$$(wc -l < "$(ML_DATA_DIR)/labels.jsonl")" -eq "$(ML_COUNT)" && $(ML_BUILD_DIR)/AdbSynthRender --dump-schema | cmp -s - "$(ML_DATA_DIR)/schema.json"; then \
 		echo "[$$(date '+%Y-%m-%d %H:%M:%S')] Reusing $(ML_COUNT) clips in $(ML_DATA_DIR)"; \
 	else \
 		echo "[$$(date '+%Y-%m-%d %H:%M:%S')] Rendering $(ML_COUNT) clips into $(ML_DATA_DIR)"; \

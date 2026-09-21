@@ -3,6 +3,7 @@
 #include "PluginProcessor.h"
 
 class AdbSynthAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                     private juce::ListBoxModel,
                                      private juce::Timer
 {
 public:
@@ -15,6 +16,11 @@ public:
 private:
     void timerCallback() override;
     void chooseFile();
+    int getNumRows() override;
+    void paintListBoxItem(int rowNumber, juce::Graphics&, int width, int height, bool rowIsSelected) override;
+    void listBoxItemClicked(int row, const juce::MouseEvent&) override;
+    void updateFolderFiles(const juce::File&);
+    void loadSelectedFile(const juce::File&);
     void guessParameters();
     void updateSourceOfTruth(const juce::File&);
     void updateGuess(const juce::String& output, const juce::String& error);
@@ -31,8 +37,11 @@ private:
     juce::TextButton playSynthButton { "Hold synth" };
     juce::Label fileLabel;
     juce::Label guessLabel;
+    juce::ListBox folderFilesList { "Folder files", this };
     juce::TextEditor sourceOfTruthEditor;
     juce::File sourceOfTruthForFile;
+    juce::File lastAudioDirectory;
+    juce::Array<juce::File> folderFiles;
     std::thread guessThread;
     std::atomic<bool> guessRunning { false };
 
