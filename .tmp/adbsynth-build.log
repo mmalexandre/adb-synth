@@ -1,5 +1,5 @@
 [  9%] Built target adbsynth_core
-[ 13%] Building CXX object CMakeFiles/AdbSynth.dir/Source/PluginEditor.cpp.o
+[ 18%] Building CXX object CMakeFiles/AdbSynth.dir/Source/PluginEditor.cpp.o
 [ 18%] Building CXX object CMakeFiles/AdbSynth.dir/Source/PluginProcessor.cpp.o
 In file included from /var/www/adbsynth/build/_deps/juce-src/modules/juce_audio_processors/juce_audio_processors.h:154,
                  from /var/www/adbsynth/build/_deps/juce-src/modules/juce_audio_plugin_client/juce_audio_plugin_client.h:65,

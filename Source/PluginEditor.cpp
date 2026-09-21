@@ -228,7 +228,7 @@ void AdbSynthAudioProcessorEditor::updateFolderFiles(const juce::File& directory
     folderFilesList.updateContent();
 }
 
-void AdbSynthAudioProcessorEditor::loadSelectedFile(const juce::File& file)
+void AdbSynthAudioProcessorEditor::loadSelectedFile(juce::File file)
 {
     lastAudioDirectory = file.getParentDirectory();
     updateFolderFiles(lastAudioDirectory);

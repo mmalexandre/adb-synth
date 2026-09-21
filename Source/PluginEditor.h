@@ -20,7 +20,7 @@ private:
     void paintListBoxItem(int rowNumber, juce::Graphics&, int width, int height, bool rowIsSelected) override;
     void listBoxItemClicked(int row, const juce::MouseEvent&) override;
     void updateFolderFiles(const juce::File&);
-    void loadSelectedFile(const juce::File&);
+    void loadSelectedFile(juce::File);
     void guessParameters();
     void updateSourceOfTruth(const juce::File&);
     void updateGuess(const juce::String& output, const juce::String& error);
