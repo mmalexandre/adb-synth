@@ -9,7 +9,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from schema import export_schema
+from schema import canonicalize_oscillator_frequencies, export_schema
 
 DEFAULT_SAMPLE_RATE = 44100
 
@@ -32,6 +32,7 @@ def build_manifest(specs, count: int, seed: int, duration: float, sample_rate: i
         }
         for spec in specs:
             patch[spec.id] = spec.sample(rng)
+        canonicalize_oscillator_frequencies(patch)
         patches.append(patch)
 
     return patches

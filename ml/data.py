@@ -20,7 +20,7 @@ import torch
 from torch.utils.data import Dataset
 
 from features import CLIP_SAMPLES
-from schema import ParameterSpec
+from schema import ParameterSpec, canonicalize_oscillator_frequencies
 
 GAIN_RANGE_DB = (-24.0, 0.0)
 SNR_RANGE_DB = (10.0, 60.0)
@@ -83,8 +83,11 @@ class RenderedClips(Dataset):
         if self.augment:
             audio = self._augment(audio, rng)
 
+        parameters = canonicalize_oscillator_frequencies(
+            {spec.id: float(entry[spec.id]) for spec in self.specs}
+        )
         targets = {
-            spec.id: torch.tensor(float(entry[spec.id]), dtype=torch.float32) for spec in self.specs
+            spec.id: torch.tensor(parameters[spec.id], dtype=torch.float32) for spec in self.specs
         }
         return torch.from_numpy(np.ascontiguousarray(audio)), targets
 

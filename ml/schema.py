@@ -16,6 +16,7 @@ from pathlib import Path
 
 # Render-only fields that describe the recording conditions rather than the patch.
 NUISANCE_FIELDS = ("id", "file", "phase", "duration", "sample_rate", "channels")
+OSCILLATOR_FREQUENCY_IDS = ("frequency", "frequency2")
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,16 @@ class ParameterSpec:
         if self.log_scale:
             return math.exp(rng.uniform(math.log(self.min), math.log(self.max)))
         return rng.uniform(self.min, self.max)
+
+
+def canonicalize_oscillator_frequencies(parameters: dict) -> dict:
+    """Use low/high ordering because the mixed audio has no oscillator identity."""
+    first_id, second_id = OSCILLATOR_FREQUENCY_IDS
+    if first_id in parameters and second_id in parameters:
+        parameters[first_id], parameters[second_id] = sorted(
+            (parameters[first_id], parameters[second_id])
+        )
+    return parameters
 
 
 def load_schema(path: Path) -> list[ParameterSpec]:
