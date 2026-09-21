@@ -26,3 +26,4 @@ ml/checkpoints/
 __pycache__/
 *.py[cod]
 .tmp/ml/
+.tmp

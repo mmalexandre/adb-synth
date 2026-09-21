@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.22)
 project(AdbSynth VERSION 0.1.0)
 
 option(ADBSYNTH_BUILD_PLUGIN "Build the JUCE plugin and standalone app" ON)
+set(ADBSYNTH_TORCH_DIR "/var/www/chino/.venv-whisper/lib/python3.12/site-packages/torch/share/cmake/Torch"
+    CACHE PATH "Path to the PyTorch CMake package")
 
 include(FetchContent)
 
@@ -15,9 +17,17 @@ if(ADBSYNTH_BUILD_PLUGIN)
     )
     FetchContent_MakeAvailable(JUCE)
 
-    set(Torch_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.venv/lib/python3.12/site-packages/torch/share/cmake/Torch")
+    set(Torch_DIR "${ADBSYNTH_TORCH_DIR}")
 
     find_package(Torch REQUIRED)
+    get_filename_component(ADBSYNTH_TORCH_ROOT "${ADBSYNTH_TORCH_DIR}/../../.." ABSOLUTE)
+    set(ADBSYNTH_TORCH_LIB_DIR "${ADBSYNTH_TORCH_ROOT}/lib")
+    set(ADBSYNTH_TORCH_CPU_LIBRARIES
+        "${ADBSYNTH_TORCH_LIB_DIR}/libtorch.so"
+        "${ADBSYNTH_TORCH_LIB_DIR}/libtorch_cpu.so"
+        "${ADBSYNTH_TORCH_LIB_DIR}/libc10.so"
+        "${ADBSYNTH_TORCH_LIB_DIR}/libtorch_global_deps.so"
+    )
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 endif()
 
@@ -58,6 +68,10 @@ target_sources(AdbSynth PRIVATE
     Source/PluginEditor.h
 )
 target_compile_features(AdbSynth PRIVATE cxx_std_20)
+target_include_directories(AdbSynth PRIVATE
+    "${ADBSYNTH_TORCH_ROOT}/include"
+    "${ADBSYNTH_TORCH_ROOT}/include/torch/csrc/api/include"
+)
 
 juce_generate_juce_header(AdbSynth)
 
@@ -73,10 +87,14 @@ target_compile_definitions(AdbSynth
     target_link_libraries(AdbSynth
         PRIVATE
             adbsynth_core
-            ${TORCH_LIBRARIES}
+            ${ADBSYNTH_TORCH_CPU_LIBRARIES}
             juce::juce_audio_utils
             juce::juce_recommended_config_flags
             juce::juce_recommended_lto_flags
             juce::juce_recommended_warning_flags
+    )
+    set_target_properties(AdbSynth PROPERTIES
+        BUILD_RPATH "${ADBSYNTH_TORCH_LIB_DIR}"
+        INSTALL_RPATH "${ADBSYNTH_TORCH_LIB_DIR}"
     )
 endif()
