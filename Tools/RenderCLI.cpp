@@ -199,6 +199,9 @@ int renderManifest(const std::string& manifestPath, const std::string& outputDir
         const auto channels = static_cast<int>(fieldOr(fields, "channels", 1.0));
         const auto phase = fieldOr(fields, "phase", 0.0);
         const auto numSamples = static_cast<int>(duration * sampleRate);
+        const auto noteDuration = duration * 0.75;
+        const auto noteSamples = static_cast<int>(noteDuration * sampleRate);
+        const auto releaseSamples = numSamples - noteSamples;
 
         std::map<std::string, double> values;
 
@@ -226,7 +229,23 @@ int renderManifest(const std::string& manifestPath, const std::string& outputDir
 
         engine.prepare(static_cast<double>(sampleRate));
         engine.reset(phase);
-        engine.render(channelPointers.data(), channels, numSamples, params);
+        params.gate = true;
+        engine.render(channelPointers.data(), channels, noteSamples, params);
+
+        params.gate = false;
+        std::vector<std::vector<float>> releaseData(static_cast<std::size_t>(channels),
+                                                    std::vector<float>(static_cast<std::size_t>(releaseSamples), 0.0f));
+        std::vector<float*> releasePointers;
+
+        for (auto& channel : releaseData)
+            releasePointers.push_back(channel.data());
+
+        engine.render(releasePointers.data(), channels, releaseSamples, params);
+
+        for (int sample = 0; sample < releaseSamples; ++sample)
+            for (int channel = 0; channel < channels; ++channel)
+                channelData[static_cast<std::size_t>(channel)][static_cast<std::size_t>(noteSamples + sample)] =
+                    releaseData[static_cast<std::size_t>(channel)][static_cast<std::size_t>(sample)];
 
         std::vector<float> interleaved(static_cast<std::size_t>(numSamples) * static_cast<std::size_t>(channels));
 

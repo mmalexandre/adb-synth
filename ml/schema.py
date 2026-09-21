@@ -45,9 +45,12 @@ def canonicalize_oscillator_frequencies(parameters: dict) -> dict:
     """Use low/high ordering because the mixed audio has no oscillator identity."""
     first_id, second_id = OSCILLATOR_FREQUENCY_IDS
     if first_id in parameters and second_id in parameters:
-        parameters[first_id], parameters[second_id] = sorted(
-            (parameters[first_id], parameters[second_id])
-        )
+        if parameters[first_id] > parameters[second_id]:
+            names = ("frequency", "attack", "decay", "sustain", "release")
+            names = tuple(name for name in names if name in parameters and f"{name}2" in parameters)
+            values = {name: (parameters[name], parameters[f"{name}2"]) for name in names}
+            for name, (first, second) in values.items():
+                parameters[name], parameters[f"{name}2"] = second, first
     return parameters
 
 

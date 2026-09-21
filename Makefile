@@ -10,6 +10,7 @@ ML_VENV_STAMP := $(ML_VENV)/.requirements-installed
 ML_TMP_DIR ?= .tmp/ml
 ML_DATA_DIR ?= $(ML_TMP_DIR)/train
 ML_COUNT ?= 20000
+ML_DURATION ?= 1.0
 ML_EPOCHS ?= 20
 ML_CHECKPOINT ?= ml/checkpoints/model.pt
 ML_ROCM_ARCH ?= 11.0.0
@@ -40,12 +41,12 @@ ml-renderer:
 
 ml-data:
 	@$(MAKE) ml-renderer; \
-	if test -f "$(ML_DATA_DIR)/labels.jsonl" && test -f "$(ML_DATA_DIR)/schema.json" && test "$$(wc -l < "$(ML_DATA_DIR)/labels.jsonl")" -eq "$(ML_COUNT)" && $(ML_BUILD_DIR)/AdbSynthRender --dump-schema | cmp -s - "$(ML_DATA_DIR)/schema.json"; then \
+	if test -f "$(ML_DATA_DIR)/labels.jsonl" && test -f "$(ML_DATA_DIR)/schema.json" && test "$$(wc -l < "$(ML_DATA_DIR)/labels.jsonl")" -eq "$(ML_COUNT)" && test "$$(awk -v expected="$(ML_DURATION)" 'match($$0, /"duration": [0-9.]+/) { value = substr($$0, RSTART + 12, RLENGTH - 12); if (value == expected || value + 0 == expected + 0) { print "ok"; exit } }' "$(ML_DATA_DIR)/labels.jsonl")" = ok && $(ML_BUILD_DIR)/AdbSynthRender --dump-schema | cmp -s - "$(ML_DATA_DIR)/schema.json"; then \
 		echo "[$$(date '+%Y-%m-%d %H:%M:%S')] Reusing $(ML_COUNT) clips in $(ML_DATA_DIR)"; \
 	else \
 		echo "[$$(date '+%Y-%m-%d %H:%M:%S')] Rendering $(ML_COUNT) clips into $(ML_DATA_DIR)"; \
 		$$(MAKE) ml-renderer; \
-		PYTHONPATH=ml $(ML_PYTHON) ml/generate.py --renderer $(ML_BUILD_DIR)/AdbSynthRender --outdir $(ML_DATA_DIR) --count $(ML_COUNT); \
+		PYTHONPATH=ml $(ML_PYTHON) ml/generate.py --renderer $(ML_BUILD_DIR)/AdbSynthRender --outdir $(ML_DATA_DIR) --count $(ML_COUNT) --duration $(ML_DURATION); \
 	fi
 
 ml-train: ml-data

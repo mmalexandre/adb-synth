@@ -44,7 +44,7 @@ def main() -> None:
     parser.add_argument("--outdir", type=Path, required=True)
     parser.add_argument("--count", type=int, default=20000)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--duration", type=float, default=0.5)
+    parser.add_argument("--duration", type=float, default=1.0)
     parser.add_argument("--sample-rate", type=int, default=DEFAULT_SAMPLE_RATE)
     args = parser.parse_args()
 

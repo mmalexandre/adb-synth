@@ -9,3 +9,4 @@
 - Create specialized submodels to handle only a few params, instead of a big one
 - Work at normalized volume
 - Try to change parameters depending on human words: more distorted, etc.
+- Focus on beginning instead of full sound: attack, decay, sustain. Timber but not release, wobbles.
