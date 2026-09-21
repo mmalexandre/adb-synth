@@ -91,13 +91,29 @@ def main() -> None:
     parser.add_argument("--dashboard-port", type=int, default=8765)
     args = parser.parse_args()
 
-    dashboard = TrainingDashboard(args.dashboard_host, args.dashboard_port)
-    dashboard.start()
-    log(f"dashboard={dashboard.url}", dashboard)
-
     device = pick_device(args.device)
     specs = load_schema(args.data / "schema.json")
     train_set, validation_set = split(args.data, specs)
+
+    metric_names = {
+        spec.id: (
+            ["accuracy"] if spec.kind in {"choice", "bool"}
+            else ["median_cents", "within_50_cents", "octave_errors"]
+            if spec.log_scale else ["mean_abs_error"]
+        )
+        for spec in specs
+    }
+    dashboard = TrainingDashboard(
+        args.dashboard_host,
+        args.dashboard_port,
+        [
+            {"key": f"{name}.{metric}", "title": f"{name} / {metric}", "full_width": False}
+            for name, metrics in metric_names.items()
+            for metric in metrics
+        ],
+    )
+    dashboard.start()
+    log(f"dashboard={dashboard.url}", dashboard)
 
     train_loader = DataLoader(
         train_set, batch_size=args.batch_size, shuffle=True, num_workers=args.workers, drop_last=True

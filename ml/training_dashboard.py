@@ -28,6 +28,7 @@ PAGE = r"""<!doctype html>
     #status { color: var(--accent); font-size: 12px; text-transform: uppercase; }
     #graphs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
     section { border: 1px solid var(--line); background: color-mix(in srgb, var(--panel) 92%, transparent); padding: 16px; }
+    .full-width { grid-column: 1 / -1; }
     h2 { margin: 0 0 12px; font-size: 13px; font-weight: 600; color: var(--muted); }
     canvas { display: block; width: 100%; height: 220px; }
     #gpu-info { display: grid; gap: 10px; }
@@ -44,6 +45,7 @@ PAGE = r"""<!doctype html>
 <body>
   <main>
     <header><h1>AdbSynth / training</h1><span id="status">connecting</span></header>
+    <section id="gpu-panel"><h2>GPU</h2><div id="gpu-info">Telemetry unavailable</div></section>
     <div id="graphs"></div>
     <section><h2>stdout</h2><div id="output"></div></section>
   </main>
@@ -51,10 +53,11 @@ PAGE = r"""<!doctype html>
     const graphs = new Map();
     const output = document.querySelector('#output');
     const status = document.querySelector('#status');
-    const state = { epochs: [], progress: null, gpu: [], finished: false };
+        const state = { epochs: [], progress: null, gpu: [], graphs: [], finished: false };
 
-    function makeGraph(title, key) {
+        function makeGraph(title, key, fullWidth = false) {
       const section = document.createElement('section');
+            if (fullWidth) section.classList.add('full-width');
       section.innerHTML = `<h2>${title}</h2><canvas></canvas>`;
       document.querySelector('#graphs').append(section);
       const canvas = section.querySelector('canvas');
@@ -62,8 +65,8 @@ PAGE = r"""<!doctype html>
       return graphs.get(key);
     }
 
-        makeGraph('train loss', 'train_loss');
-        makeGraph('validation loss', 'validation_loss');
+    makeGraph('train loss', 'train_loss', true);
+    makeGraph('validation loss', 'validation_loss');
 
     function draw(graph) {
       const canvas = graph.canvas;
@@ -111,8 +114,11 @@ PAGE = r"""<!doctype html>
 
     function applyState(next) {
       Object.assign(state, next);
-    graphs.get('train_loss').values = state.epochs.map(item => item.train_loss);
-    graphs.get('validation_loss').values = state.epochs.map(item => item.validation_loss);
+            for (const graph of state.graphs) {
+                if (!graphs.has(graph.key)) makeGraph(graph.title, graph.key, graph.full_width);
+            }
+            graphs.get('train_loss').values = state.epochs.map(item => item.train_loss);
+            graphs.get('validation_loss').values = state.epochs.map(item => item.validation_loss);
       for (const item of state.epochs) for (const [name, metrics] of Object.entries(item.metrics || {})) {
         for (const [metric, value] of Object.entries(metrics)) {
           const key = `${name}.${metric}`;
@@ -136,13 +142,7 @@ PAGE = r"""<!doctype html>
         }
 
         function renderGpu() {
-            let section = document.querySelector('#gpu-panel');
-            if (!section) {
-                section = document.createElement('section');
-                section.id = 'gpu-panel';
-                section.innerHTML = '<h2>GPU</h2><div id="gpu-info"></div>';
-                document.querySelector('#graphs').append(section);
-            }
+            const section = document.querySelector('#gpu-panel');
             const info = section.querySelector('#gpu-info');
             info.replaceChildren();
             if (!state.gpu.length) {
@@ -215,11 +215,17 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 class TrainingDashboard:
-    def __init__(self, host: str = "127.0.0.1", port: int = 8765) -> None:
+    def __init__(
+        self, host: str = "127.0.0.1", port: int = 8765,
+        graph_definitions: list[dict[str, Any]] | None = None,
+    ) -> None:
         self._lock = threading.Lock()
         self._clients: list[Any] = []
         self._events: deque[str] = deque(maxlen=2000)
-        self._state: dict[str, Any] = {"epochs": [], "progress": None, "gpu": [], "finished": False}
+        self._state: dict[str, Any] = {
+            "epochs": [], "progress": None, "gpu": [],
+            "graphs": graph_definitions or [], "finished": False,
+        }
         self._gpu_stop = threading.Event()
         self._gpu_thread = threading.Thread(target=self._sample_gpu, daemon=True)
         self._progress_started: float | None = None
