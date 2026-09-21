@@ -207,6 +207,7 @@ int renderManifest(const std::string& manifestPath, const std::string& outputDir
 
         adbsynth::SynthParams params;
         params.frequency = static_cast<float>(values["frequency"]);
+        params.frequency2 = static_cast<float>(values["frequency2"]);
 
         std::vector<std::vector<float>> channelData(static_cast<std::size_t>(channels),
                                                     std::vector<float>(static_cast<std::size_t>(numSamples), 0.0f));

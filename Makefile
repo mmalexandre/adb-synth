@@ -27,6 +27,9 @@ build: configure
 run: build
 	$(STANDALONE_APP)
 
+run-standalone-synth:
+	$(STANDALONE_APP)
+
 clean:
 	rm -rf $(BUILD_DIR)
 

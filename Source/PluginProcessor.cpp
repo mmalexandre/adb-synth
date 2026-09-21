@@ -170,6 +170,7 @@ void AdbSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     {
         adbsynth::SynthParams params;
         params.frequency = parameters.getRawParameterValue("frequency")->load();
+        params.frequency2 = parameters.getRawParameterValue("frequency2")->load();
 
         juce::AudioBuffer<float> synthBuffer(buffer.getNumChannels(), buffer.getNumSamples());
         engine.render(synthBuffer.getArrayOfWritePointers(), synthBuffer.getNumChannels(), synthBuffer.getNumSamples(), params);

@@ -35,8 +35,9 @@ struct ParameterDescriptor
     int numChoices;
 };
 
-inline constexpr std::array<ParameterDescriptor, 1> parameterSchema { {
+inline constexpr std::array<ParameterDescriptor, 2> parameterSchema { {
     { "frequency", "Frequency", "Hz", ParameterKind::Float, 20.0f, 20000.0f, true, 440.0f, nullptr, 0 },
+    { "frequency2", "Frequency 2", "Hz", ParameterKind::Float, 20.0f, 20000.0f, true, 440.0f, nullptr, 0 },
 } };
 
 inline const ParameterDescriptor* findParameter(const std::string& id)
@@ -88,7 +89,7 @@ inline const char* parameterKindName(ParameterKind kind)
 inline std::string schemaToJson()
 {
     std::ostringstream json;
-    json << "{\n  \"schema_version\": 1,\n  \"parameters\": [\n";
+    json << "{\n  \"schema_version\": 2,\n  \"parameters\": [\n";
 
     for (std::size_t index = 0; index < parameterSchema.size(); ++index)
     {

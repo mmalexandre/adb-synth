@@ -22,7 +22,9 @@ private:
 
     AdbSynthAudioProcessor& processor;
     juce::Slider frequencyKnob;
+    juce::Slider frequency2Knob;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> frequencyAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> frequency2Attachment;
     juce::TextButton chooseButton { "Load audio" };
     juce::TextButton guessButton { "Guess" };
     juce::TextButton playFileButton { "Play file" };

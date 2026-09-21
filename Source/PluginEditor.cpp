@@ -25,6 +25,21 @@ AdbSynthAudioProcessorEditor::AdbSynthAudioProcessorEditor(AdbSynthAudioProcesso
         descriptor.id,
         frequencyKnob);
 
+    const auto& descriptor2 = adbsynth::parameterSchema[1];
+    frequency2Knob.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    frequency2Knob.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 90, 20);
+    frequency2Knob.setRange(descriptor2.minValue, descriptor2.maxValue);
+    frequency2Knob.setSkewFactorFromMidPoint(std::sqrt(descriptor2.minValue * descriptor2.maxValue));
+    frequency2Knob.setNumDecimalPlacesToDisplay(2);
+    frequency2Knob.setTextValueSuffix(" Hz");
+    frequency2Knob.setTooltip(descriptor2.label);
+    addAndMakeVisible(frequency2Knob);
+
+    frequency2Attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        processor.parameters,
+        descriptor2.id,
+        frequency2Knob);
+
     chooseButton.onClick = [this] { chooseFile(); };
     guessButton.onClick = [this] { guessParameters(); };
     playFileButton.onClick = [this] { processor.triggerFilePlayback(); };
@@ -71,7 +86,9 @@ void AdbSynthAudioProcessorEditor::paint(juce::Graphics& graphics)
 void AdbSynthAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(24);
-    frequencyKnob.setBounds(area.removeFromTop(135));
+    auto oscillatorRow = area.removeFromTop(135);
+    frequencyKnob.setBounds(oscillatorRow.removeFromLeft(oscillatorRow.getWidth() / 2));
+    frequency2Knob.setBounds(oscillatorRow);
     area.removeFromTop(8);
     area.removeFromTop(110);
     area.removeFromTop(8);
@@ -198,13 +215,20 @@ void AdbSynthAudioProcessorEditor::updateGuess(const juce::String& output, const
         return;
     }
 
-    const auto value = parsed.getDynamicObject()->getProperty("frequency");
-    if (value.isDouble() || value.isInt())
+    bool updated = false;
+    for (const auto& descriptor : adbsynth::parameterSchema)
     {
-        auto* parameter = const_cast<juce::RangedAudioParameter*>(processor.parameters.getParameter("frequency"));
-        parameter->setValueNotifyingHost(parameter->convertTo0to1(static_cast<float>(value)));
-        guessLabel.setText("Guessed frequency: " + juce::String(static_cast<double>(value), 2) + " Hz", juce::dontSendNotification);
+        const auto value = parsed.getDynamicObject()->getProperty(descriptor.id);
+        if (value.isDouble() || value.isInt())
+        {
+            auto* parameter = const_cast<juce::RangedAudioParameter*>(processor.parameters.getParameter(descriptor.id));
+            parameter->setValueNotifyingHost(parameter->convertTo0to1(static_cast<float>(value)));
+            updated = true;
+        }
     }
+
+    if (updated)
+        guessLabel.setText("Guessed oscillator frequencies.", juce::dontSendNotification);
 }
 
 void AdbSynthAudioProcessorEditor::drawWaveform(juce::Graphics& graphics, juce::Rectangle<int> bounds) const
