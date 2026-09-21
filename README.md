@@ -33,3 +33,13 @@ JUCE is downloaded by CMake into its dependency cache during configuration.
 
 See [ml/README.md](ml/README.md) for generating a dataset and training the model that estimates the
 synth parameters from a short audio sample.
+
+While training, a live dashboard is available at `http://127.0.0.1:8765` by default. Start training
+with the dashboard enabled (the default):
+
+```sh
+python ml/train.py --data data/ --dashboard-port 8765
+```
+
+The page shows loss and parameter metric graphs, plus the trainer's stdout. Use `--dashboard-port 0`
+to choose a free port; the selected URL is printed when training starts.

@@ -13,10 +13,14 @@ from torch.utils.data import DataLoader
 from data import split
 from model import ParameterEstimator
 from schema import load_schema
+from training_dashboard import TrainingDashboard
 
 
-def log(message: str) -> None:
-    print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {message}", flush=True)
+def log(message: str, dashboard: TrainingDashboard | None = None) -> None:
+    text = f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {message}"
+    print(text, flush=True)
+    if dashboard is not None:
+        dashboard.publish_output(text + "\n")
 
 
 def pick_device(requested: str) -> torch.device:
@@ -83,7 +87,13 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--checkpoint", type=Path, default=Path("ml/checkpoints/model.pt"))
+    parser.add_argument("--dashboard-host", default="127.0.0.1")
+    parser.add_argument("--dashboard-port", type=int, default=8765)
     args = parser.parse_args()
+
+    dashboard = TrainingDashboard(args.dashboard_host, args.dashboard_port)
+    dashboard.start()
+    log(f"dashboard={dashboard.url}", dashboard)
 
     device = pick_device(args.device)
     specs = load_schema(args.data / "schema.json")
@@ -104,7 +114,7 @@ def main() -> None:
     log(
         f"device={device} params={parameter_count/1e6:.2f}M "
         f"train={len(train_set)} val={len(validation_set)} "
-        f"batch_size={args.batch_size} workers={args.workers}"
+        f"batch_size={args.batch_size} workers={args.workers}", dashboard
     )
 
     args.checkpoint.parent.mkdir(parents=True, exist_ok=True)
@@ -118,11 +128,9 @@ def main() -> None:
         progress_prefix = f"[{datetime.now():%Y-%m-%d %H:%M:%S}] epoch {epoch:3d}/{args.epochs} "
 
         def draw_progress() -> None:
-            print(
-                f"\r{progress_prefix}[{'.' * rendered_dots}{' ' * (55 - rendered_dots)}]",
-                end="",
-                flush=True,
-            )
+            text = f"\r{progress_prefix}[{'.' * rendered_dots}{' ' * (55 - rendered_dots)}]"
+            print(text, end="", flush=True)
+            dashboard.publish_output(text)
 
         def update_progress() -> None:
             nonlocal completed_iterations, rendered_dots
@@ -131,6 +139,7 @@ def main() -> None:
             if target_dots != rendered_dots:
                 rendered_dots = target_dots
                 draw_progress()
+            dashboard.update_progress(epoch, args.epochs, completed_iterations, total_iterations)
 
         draw_progress()
         train_loss, _ = run_epoch(model, train_loader, device, optimiser, update_progress)
@@ -141,11 +150,14 @@ def main() -> None:
         rendered_dots = 55
         draw_progress()
         print()
+        dashboard.publish_output("\n")
 
         log(
             f"epoch {epoch:3d}/{args.epochs} finished in {time.monotonic() - epoch_started:.1f}s "
-            f"train {train_loss:.4f} val {validation_loss:.4f} | {format_metrics(metrics)}"
+            f"train {train_loss:.4f} val {validation_loss:.4f} | {format_metrics(metrics)}",
+            dashboard,
         )
+        dashboard.record_epoch(epoch, train_loss, validation_loss, metrics)
 
         if validation_loss < best:
             best = validation_loss
@@ -153,9 +165,10 @@ def main() -> None:
                 {"state_dict": model.state_dict(), "schema": str(args.data / "schema.json")},
                 args.checkpoint,
             )
-            log(f"saved checkpoint {args.checkpoint}")
+            log(f"saved checkpoint {args.checkpoint}", dashboard)
 
-    log(f"best validation loss {best:.4f} -> {args.checkpoint}")
+    log(f"best validation loss {best:.4f} -> {args.checkpoint}", dashboard)
+    dashboard.finish()
 
 
 if __name__ == "__main__":
