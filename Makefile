@@ -34,10 +34,18 @@ ml-renderer:
 	cmake -S . -B $(ML_BUILD_DIR) -DADBSYNTH_BUILD_PLUGIN=OFF
 	cmake --build $(ML_BUILD_DIR) --target AdbSynthRender --config $(CONFIG)
 
-ml-data: ml-renderer
-	PYTHONPATH=ml $(ML_PYTHON) ml/generate.py --renderer $(ML_BUILD_DIR)/AdbSynthRender --outdir $(ML_DATA_DIR) --count $(ML_COUNT)
+
+ml-data:
+	@if test -f "$(ML_DATA_DIR)/labels.jsonl" && test -f "$(ML_DATA_DIR)/schema.json" && test "$$(wc -l < "$(ML_DATA_DIR)/labels.jsonl")" -eq "$(ML_COUNT)"; then \
+		echo "[$$(date '+%Y-%m-%d %H:%M:%S')] Reusing $(ML_COUNT) clips in $(ML_DATA_DIR)"; \
+	else \
+		echo "[$$(date '+%Y-%m-%d %H:%M:%S')] Rendering $(ML_COUNT) clips into $(ML_DATA_DIR)"; \
+		$$(MAKE) ml-renderer; \
+		PYTHONPATH=ml $(ML_PYTHON) ml/generate.py --renderer $(ML_BUILD_DIR)/AdbSynthRender --outdir $(ML_DATA_DIR) --count $(ML_COUNT); \
+	fi
 
 ml-train: ml-data
+	echo "[$$(date '+%Y-%m-%d %H:%M:%S')] Starting training for $(ML_EPOCHS) epochs";
 	HSA_OVERRIDE_GFX_VERSION=$(ML_ROCM_ARCH) PYTHONPATH=ml $(ML_PYTHON) ml/train.py --data $(ML_DATA_DIR) --epochs $(ML_EPOCHS) --checkpoint $(ML_CHECKPOINT)
 
 ml-export:

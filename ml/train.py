@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import time
+from datetime import datetime
 from pathlib import Path
 
 import torch
@@ -13,13 +15,17 @@ from model import ParameterEstimator
 from schema import load_schema
 
 
+def log(message: str) -> None:
+    print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {message}", flush=True)
+
+
 def pick_device(requested: str) -> torch.device:
     if requested != "auto":
         return torch.device(requested)
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def run_epoch(model, loader, device, optimiser=None) -> tuple[float, dict]:
+def run_epoch(model, loader, device, optimiser=None, progress=None) -> tuple[float, dict]:
     training = optimiser is not None
     model.train(training)
 
@@ -50,6 +56,9 @@ def run_epoch(model, loader, device, optimiser=None) -> tuple[float, dict]:
                 bucket = accumulated.setdefault(name, {})
                 for key, value in values.items():
                     bucket[key] = bucket.get(key, 0.0) + value
+
+            if progress is not None:
+                progress()
 
     averaged = {
         name: {key: value / max(1, batches) for key, value in values.items()}
@@ -92,17 +101,51 @@ def main() -> None:
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, T_max=args.epochs)
 
     parameter_count = sum(p.numel() for p in model.parameters())
-    print(f"device={device} params={parameter_count/1e6:.2f}M train={len(train_set)} val={len(validation_set)}")
+    log(
+        f"device={device} params={parameter_count/1e6:.2f}M "
+        f"train={len(train_set)} val={len(validation_set)} "
+        f"batch_size={args.batch_size} workers={args.workers}"
+    )
 
     args.checkpoint.parent.mkdir(parents=True, exist_ok=True)
     best = float("inf")
 
     for epoch in range(1, args.epochs + 1):
-        train_loss, _ = run_epoch(model, train_loader, device, optimiser)
-        validation_loss, metrics = run_epoch(model, validation_loader, device)
-        scheduler.step()
+        epoch_started = time.monotonic()
+        total_iterations = len(train_loader) + len(validation_loader)
+        completed_iterations = 0
+        rendered_dots = 0
+        progress_prefix = f"[{datetime.now():%Y-%m-%d %H:%M:%S}] epoch {epoch:3d}/{args.epochs} "
 
-        print(f"epoch {epoch:3d} train {train_loss:.4f} val {validation_loss:.4f} | {format_metrics(metrics)}")
+        def draw_progress() -> None:
+            print(
+                f"\r{progress_prefix}[{'.' * rendered_dots}{' ' * (55 - rendered_dots)}]",
+                end="",
+                flush=True,
+            )
+
+        def update_progress() -> None:
+            nonlocal completed_iterations, rendered_dots
+            completed_iterations += 1
+            target_dots = min(55, completed_iterations * 55 // max(1, total_iterations))
+            if target_dots != rendered_dots:
+                rendered_dots = target_dots
+                draw_progress()
+
+        draw_progress()
+        train_loss, _ = run_epoch(model, train_loader, device, optimiser, update_progress)
+        validation_loss, metrics = run_epoch(
+            model, validation_loader, device, progress=update_progress
+        )
+        scheduler.step()
+        rendered_dots = 55
+        draw_progress()
+        print()
+
+        log(
+            f"epoch {epoch:3d}/{args.epochs} finished in {time.monotonic() - epoch_started:.1f}s "
+            f"train {train_loss:.4f} val {validation_loss:.4f} | {format_metrics(metrics)}"
+        )
 
         if validation_loss < best:
             best = validation_loss
@@ -110,8 +153,9 @@ def main() -> None:
                 {"state_dict": model.state_dict(), "schema": str(args.data / "schema.json")},
                 args.checkpoint,
             )
+            log(f"saved checkpoint {args.checkpoint}")
 
-    print(f"best validation loss {best:.4f} -> {args.checkpoint}")
+    log(f"best validation loss {best:.4f} -> {args.checkpoint}")
 
 
 if __name__ == "__main__":

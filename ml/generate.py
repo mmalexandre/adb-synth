@@ -6,11 +6,16 @@ import argparse
 import json
 import random
 import subprocess
+from datetime import datetime
 from pathlib import Path
 
 from schema import export_schema
 
 DEFAULT_SAMPLE_RATE = 44100
+
+
+def log(message: str) -> None:
+    print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {message}", flush=True)
 
 
 def build_manifest(specs, count: int, seed: int, duration: float, sample_rate: int) -> list[dict]:
@@ -42,6 +47,7 @@ def main() -> None:
     parser.add_argument("--sample-rate", type=int, default=DEFAULT_SAMPLE_RATE)
     args = parser.parse_args()
 
+    log(f"Preparing {args.count} clips in {args.outdir}")
     args.outdir.mkdir(parents=True, exist_ok=True)
     specs = export_schema(args.renderer, args.outdir / "schema.json")
 
@@ -52,12 +58,13 @@ def main() -> None:
         for patch in patches:
             stream.write(json.dumps(patch) + "\n")
 
+    log(f"Starting renderer: {args.renderer}")
     subprocess.run(
         [str(args.renderer), "--manifest", str(manifest_path), "--outdir", str(args.outdir)],
         check=True,
     )
 
-    print(f"{len(patches)} clips in {args.outdir}")
+    log(f"Finished rendering {len(patches)} clips in {args.outdir}")
 
 
 if __name__ == "__main__":
