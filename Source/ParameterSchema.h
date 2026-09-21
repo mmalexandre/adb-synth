@@ -35,9 +35,17 @@ struct ParameterDescriptor
     int numChoices;
 };
 
-inline constexpr std::array<ParameterDescriptor, 2> parameterSchema { {
+inline constexpr std::array<ParameterDescriptor, 10> parameterSchema { {
     { "frequency", "Frequency", "Hz", ParameterKind::Float, 20.0f, 20000.0f, true, 440.0f, nullptr, 0 },
+    { "attack", "Attack", "s", ParameterKind::Float, 0.001f, 10.0f, true, 0.01f, nullptr, 0 },
+    { "decay", "Decay", "s", ParameterKind::Float, 0.001f, 10.0f, true, 0.1f, nullptr, 0 },
+    { "sustain", "Sustain", "", ParameterKind::Float, 0.0f, 1.0f, false, 0.8f, nullptr, 0 },
+    { "release", "Release", "s", ParameterKind::Float, 0.001f, 10.0f, true, 0.2f, nullptr, 0 },
     { "frequency2", "Frequency 2", "Hz", ParameterKind::Float, 20.0f, 20000.0f, true, 440.0f, nullptr, 0 },
+    { "attack2", "Attack 2", "s", ParameterKind::Float, 0.001f, 10.0f, true, 0.01f, nullptr, 0 },
+    { "decay2", "Decay 2", "s", ParameterKind::Float, 0.001f, 10.0f, true, 0.1f, nullptr, 0 },
+    { "sustain2", "Sustain 2", "", ParameterKind::Float, 0.0f, 1.0f, false, 0.8f, nullptr, 0 },
+    { "release2", "Release 2", "s", ParameterKind::Float, 0.001f, 10.0f, true, 0.2f, nullptr, 0 },
 } };
 
 inline const ParameterDescriptor* findParameter(const std::string& id)

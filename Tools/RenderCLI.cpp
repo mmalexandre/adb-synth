@@ -207,7 +207,15 @@ int renderManifest(const std::string& manifestPath, const std::string& outputDir
 
         adbsynth::SynthParams params;
         params.frequency = static_cast<float>(values["frequency"]);
+        params.attack = static_cast<float>(values["attack"]);
+        params.decay = static_cast<float>(values["decay"]);
+        params.sustain = static_cast<float>(values["sustain"]);
+        params.release = static_cast<float>(values["release"]);
         params.frequency2 = static_cast<float>(values["frequency2"]);
+        params.attack2 = static_cast<float>(values["attack2"]);
+        params.decay2 = static_cast<float>(values["decay2"]);
+        params.sustain2 = static_cast<float>(values["sustain2"]);
+        params.release2 = static_cast<float>(values["release2"]);
 
         std::vector<std::vector<float>> channelData(static_cast<std::size_t>(channels),
                                                     std::vector<float>(static_cast<std::size_t>(numSamples), 0.0f));

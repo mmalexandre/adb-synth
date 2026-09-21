@@ -2,6 +2,17 @@
 
 #include "PluginProcessor.h"
 
+class EnvelopeGraph : public juce::Component
+{
+public:
+    EnvelopeGraph(juce::AudioProcessorValueTreeState& parameters, const char* attackId,
+                  const char* decayId, const char* sustainId, const char* releaseId);
+    void paint(juce::Graphics&) override;
+
+private:
+    std::array<std::atomic<float>*, 4> values {};
+};
+
 class AdbSynthAudioProcessorEditor : public juce::AudioProcessorEditor,
                                      private juce::ListBoxModel,
                                      private juce::Timer
@@ -25,12 +36,20 @@ private:
     void updateSourceOfTruth(const juce::File&);
     void updateGuess(const juce::String& output, const juce::String& error);
     void drawWaveform(juce::Graphics&, juce::Rectangle<int>) const;
+    void configureEnvelopeKnob(juce::Slider&, const char* parameterId,
+                               std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>&);
 
     AdbSynthAudioProcessor& processor;
     juce::Slider frequencyKnob;
     juce::Slider frequency2Knob;
+    std::array<juce::Slider, 4> envelopeKnobs;
+    std::array<juce::Slider, 4> envelope2Knobs;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> frequencyAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> frequency2Attachment;
+    std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, 4> envelopeAttachments;
+    std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, 4> envelope2Attachments;
+    EnvelopeGraph envelopeGraph;
+    EnvelopeGraph envelope2Graph;
     juce::TextButton chooseButton { "Load audio" };
     juce::TextButton guessButton { "Guess" };
     juce::TextButton playFileButton { "Play file" };

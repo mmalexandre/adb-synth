@@ -166,18 +166,24 @@ void AdbSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
         }
     }
 
-    if (synthHeld.load(std::memory_order_acquire))
-    {
-        adbsynth::SynthParams params;
-        params.frequency = parameters.getRawParameterValue("frequency")->load();
-        params.frequency2 = parameters.getRawParameterValue("frequency2")->load();
+    adbsynth::SynthParams params;
+    params.frequency = parameters.getRawParameterValue("frequency")->load();
+    params.attack = parameters.getRawParameterValue("attack")->load();
+    params.decay = parameters.getRawParameterValue("decay")->load();
+    params.sustain = parameters.getRawParameterValue("sustain")->load();
+    params.release = parameters.getRawParameterValue("release")->load();
+    params.frequency2 = parameters.getRawParameterValue("frequency2")->load();
+    params.attack2 = parameters.getRawParameterValue("attack2")->load();
+    params.decay2 = parameters.getRawParameterValue("decay2")->load();
+    params.sustain2 = parameters.getRawParameterValue("sustain2")->load();
+    params.release2 = parameters.getRawParameterValue("release2")->load();
+    params.gate = synthHeld.load(std::memory_order_acquire);
 
-        juce::AudioBuffer<float> synthBuffer(buffer.getNumChannels(), buffer.getNumSamples());
-        engine.render(synthBuffer.getArrayOfWritePointers(), synthBuffer.getNumChannels(), synthBuffer.getNumSamples(), params);
+    juce::AudioBuffer<float> synthBuffer(buffer.getNumChannels(), buffer.getNumSamples());
+    engine.render(synthBuffer.getArrayOfWritePointers(), synthBuffer.getNumChannels(), synthBuffer.getNumSamples(), params);
 
-        for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
-            buffer.addFrom(channel, 0, synthBuffer, channel, 0, buffer.getNumSamples());
-    }
+    for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+        buffer.addFrom(channel, 0, synthBuffer, channel, 0, buffer.getNumSamples());
 }
 
 bool AdbSynthAudioProcessor::loadAudioFile(const juce::File& file)
@@ -280,7 +286,8 @@ bool AdbSynthAudioProcessor::runModelGuess(const juce::File& file, juce::String&
         const auto outputs = model.forward({ input }).toTuple()->elements();
 
         auto* object = new juce::DynamicObject();
-        for (std::size_t index = 0; index < adbsynth::parameterSchema.size(); ++index)
+        const auto parameterCount = std::min(adbsynth::parameterSchema.size(), outputs.size());
+        for (std::size_t index = 0; index < parameterCount; ++index)
             object->setProperty(adbsynth::parameterSchema[index].id, outputs[index].toTensor().item<float>());
         result = juce::JSON::toString(juce::var(object));
         return true;

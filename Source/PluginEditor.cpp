@@ -4,10 +4,43 @@
 #include <iostream>
 #include <thread>
 
-AdbSynthAudioProcessorEditor::AdbSynthAudioProcessorEditor(AdbSynthAudioProcessor& audioProcessor)
-    : AudioProcessorEditor(&audioProcessor), processor(audioProcessor)
+EnvelopeGraph::EnvelopeGraph(juce::AudioProcessorValueTreeState& parameters, const char* attackId,
+                             const char* decayId, const char* sustainId, const char* releaseId)
 {
-    setSize(420, 660);
+    values = { parameters.getRawParameterValue(attackId), parameters.getRawParameterValue(decayId),
+               parameters.getRawParameterValue(sustainId), parameters.getRawParameterValue(releaseId) };
+}
+
+void EnvelopeGraph::paint(juce::Graphics& graphics)
+{
+    auto bounds = getLocalBounds().toFloat().reduced(5.0f);
+    graphics.setColour(juce::Colour(0xff1b242b));
+    graphics.fillRoundedRectangle(bounds, 5.0f);
+
+    const auto attack = std::max(0.001f, values[0]->load());
+    const auto decay = std::max(0.001f, values[1]->load());
+    const auto sustain = juce::jlimit(0.0f, 1.0f, values[2]->load());
+    const auto release = std::max(0.001f, values[3]->load());
+    const auto total = attack + decay + 0.25f + release;
+    const auto x = [&bounds, total] (float time) { return bounds.getX() + bounds.getWidth() * time / total; };
+    const auto y = [&bounds] (float level) { return bounds.getBottom() - bounds.getHeight() * level; };
+
+    juce::Path envelope;
+    envelope.startNewSubPath(x(0.0f), y(0.0f));
+    envelope.lineTo(x(attack), y(1.0f));
+    envelope.lineTo(x(attack + decay), y(sustain));
+    envelope.lineTo(x(attack + decay + 0.25f), y(sustain));
+    envelope.lineTo(x(attack + decay + 0.25f + release), y(0.0f));
+    graphics.setColour(juce::Colour(0xff4fbd91));
+    graphics.strokePath(envelope, juce::PathStrokeType(2.0f));
+}
+
+AdbSynthAudioProcessorEditor::AdbSynthAudioProcessorEditor(AdbSynthAudioProcessor& audioProcessor)
+    : AudioProcessorEditor(&audioProcessor), processor(audioProcessor),
+      envelopeGraph(processor.parameters, "attack", "decay", "sustain", "release"),
+      envelope2Graph(processor.parameters, "attack2", "decay2", "sustain2", "release2")
+{
+    setSize(420, 850);
 
     const auto loadedFile = processor.getLoadedAudioFile();
     if (loadedFile.existsAsFile())
@@ -16,7 +49,7 @@ AdbSynthAudioProcessorEditor::AdbSynthAudioProcessorEditor(AdbSynthAudioProcesso
         updateFolderFiles(lastAudioDirectory);
     }
 
-    const auto& descriptor = adbsynth::parameterSchema[0];
+    const auto& descriptor = *adbsynth::findParameter("frequency");
 
     frequencyKnob.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     frequencyKnob.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 90, 20);
@@ -32,7 +65,7 @@ AdbSynthAudioProcessorEditor::AdbSynthAudioProcessorEditor(AdbSynthAudioProcesso
         descriptor.id,
         frequencyKnob);
 
-    const auto& descriptor2 = adbsynth::parameterSchema[1];
+    const auto& descriptor2 = *adbsynth::findParameter("frequency2");
     frequency2Knob.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     frequency2Knob.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 90, 20);
     frequency2Knob.setRange(descriptor2.minValue, descriptor2.maxValue);
@@ -46,6 +79,18 @@ AdbSynthAudioProcessorEditor::AdbSynthAudioProcessorEditor(AdbSynthAudioProcesso
         processor.parameters,
         descriptor2.id,
         frequency2Knob);
+
+    const std::array<const char*, 4> envelopeIds { "attack", "decay", "sustain", "release" };
+    const std::array<const char*, 4> envelope2Ids { "attack2", "decay2", "sustain2", "release2" };
+    for (size_t index = 0; index < envelopeKnobs.size(); ++index)
+    {
+        configureEnvelopeKnob(envelopeKnobs[index], envelopeIds[index], envelopeAttachments[index]);
+        configureEnvelopeKnob(envelope2Knobs[index], envelope2Ids[index], envelope2Attachments[index]);
+        addAndMakeVisible(envelopeKnobs[index]);
+        addAndMakeVisible(envelope2Knobs[index]);
+    }
+    addAndMakeVisible(envelopeGraph);
+    addAndMakeVisible(envelope2Graph);
 
     chooseButton.onClick = [this] { chooseFile(); };
     guessButton.onClick = [this] { guessParameters(); };
@@ -89,7 +134,7 @@ void AdbSynthAudioProcessorEditor::paint(juce::Graphics& graphics)
 {
     graphics.fillAll(juce::Colour(0xff101418));
     auto waveformBounds = getLocalBounds().reduced(24);
-    waveformBounds.setY(167);
+    waveformBounds.setY(344);
     waveformBounds.setHeight(110);
     drawWaveform(graphics, waveformBounds);
 }
@@ -97,11 +142,20 @@ void AdbSynthAudioProcessorEditor::paint(juce::Graphics& graphics)
 void AdbSynthAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(24);
-    auto oscillatorRow = area.removeFromTop(135);
-    frequencyKnob.setBounds(oscillatorRow.removeFromLeft(oscillatorRow.getWidth() / 2));
-    frequency2Knob.setBounds(oscillatorRow);
+    auto oscillatorRow = area.removeFromTop(300);
+    auto oscillatorOne = oscillatorRow.removeFromLeft(oscillatorRow.getWidth() / 2).reduced(4, 0);
+    auto oscillatorTwo = oscillatorRow.reduced(4, 0);
+    frequencyKnob.setBounds(oscillatorOne.removeFromTop(82));
+    envelopeGraph.setBounds(oscillatorOne.removeFromTop(76));
+    frequency2Knob.setBounds(oscillatorTwo.removeFromTop(82));
+    envelope2Graph.setBounds(oscillatorTwo.removeFromTop(76));
+    for (size_t index = 0; index < envelopeKnobs.size(); ++index)
+    {
+        envelopeKnobs[index].setBounds(oscillatorOne.removeFromLeft(oscillatorOne.getWidth() / (4 - static_cast<int>(index))));
+        envelope2Knobs[index].setBounds(oscillatorTwo.removeFromLeft(oscillatorTwo.getWidth() / (4 - static_cast<int>(index))));
+    }
     area.removeFromTop(8);
-    area.removeFromTop(110);
+    area.removeFromTop(90);
     area.removeFromTop(8);
     auto modelRow = area.removeFromTop(30);
     chooseButton.setBounds(modelRow.removeFromLeft(125));
@@ -116,6 +170,23 @@ void AdbSynthAudioProcessorEditor::resized()
     area.removeFromTop(8);
     playFileButton.setBounds(area.removeFromTop(34).removeFromLeft(125));
     playSynthButton.setBounds(area.removeFromTop(34).removeFromLeft(125));
+}
+
+void AdbSynthAudioProcessorEditor::configureEnvelopeKnob(
+    juce::Slider& knob, const char* parameterId,
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>& attachment)
+{
+    const auto* descriptor = adbsynth::findParameter(parameterId);
+    knob.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    knob.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 58, 18);
+    knob.setRange(descriptor->minValue, descriptor->maxValue);
+    if (descriptor->logScale)
+        knob.setSkewFactorFromMidPoint(std::sqrt(descriptor->minValue * descriptor->maxValue));
+    knob.setNumDecimalPlacesToDisplay(2);
+    knob.setTextValueSuffix(descriptor->unit[0] == '\0' ? "" : " " + juce::String(descriptor->unit));
+    knob.setTooltip(descriptor->label);
+    attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        processor.parameters, parameterId, knob);
 }
 
 void AdbSynthAudioProcessorEditor::timerCallback()
