@@ -183,6 +183,16 @@ def main() -> None:
             )
             log(f"saved checkpoint {args.checkpoint}", dashboard)
 
+        if epoch % 5 == 0:
+            periodic_checkpoint = args.checkpoint.with_name(
+                f"{args.checkpoint.stem}-epoch-{epoch}{args.checkpoint.suffix}"
+            )
+            torch.save(
+                {"state_dict": model.state_dict(), "schema": str(args.data / "schema.json")},
+                periodic_checkpoint,
+            )
+            log(f"saved checkpoint {periodic_checkpoint}", dashboard)
+
     log(f"best validation loss {best:.4f} -> {args.checkpoint}", dashboard)
     dashboard.finish()
 

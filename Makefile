@@ -11,7 +11,7 @@ ML_TMP_DIR ?= .tmp/ml
 ML_DATA_DIR ?= $(ML_TMP_DIR)/train
 ML_COUNT ?= 20000
 ML_DURATION ?= 1.0
-ML_EPOCHS ?= 20
+ML_EPOCHS ?= 500
 ML_CHECKPOINT ?= ml/checkpoints/model.pt
 ML_ROCM_ARCH ?= 11.0.0
 

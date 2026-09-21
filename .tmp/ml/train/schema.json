@@ -13,6 +13,50 @@
       "choices": []
     },
     {
+      "id": "attack",
+      "label": "Attack",
+      "unit": "s",
+      "kind": "float",
+      "min": 0.001,
+      "max": 10,
+      "log_scale": true,
+      "default": 0.01,
+      "choices": []
+    },
+    {
+      "id": "decay",
+      "label": "Decay",
+      "unit": "s",
+      "kind": "float",
+      "min": 0.001,
+      "max": 10,
+      "log_scale": true,
+      "default": 0.1,
+      "choices": []
+    },
+    {
+      "id": "sustain",
+      "label": "Sustain",
+      "unit": "",
+      "kind": "float",
+      "min": 0,
+      "max": 1,
+      "log_scale": false,
+      "default": 0.8,
+      "choices": []
+    },
+    {
+      "id": "release",
+      "label": "Release",
+      "unit": "s",
+      "kind": "float",
+      "min": 0.001,
+      "max": 10,
+      "log_scale": true,
+      "default": 0.2,
+      "choices": []
+    },
+    {
       "id": "frequency2",
       "label": "Frequency 2",
       "unit": "Hz",
@@ -21,6 +65,50 @@
       "max": 20000,
       "log_scale": true,
       "default": 440,
+      "choices": []
+    },
+    {
+      "id": "attack2",
+      "label": "Attack 2",
+      "unit": "s",
+      "kind": "float",
+      "min": 0.001,
+      "max": 10,
+      "log_scale": true,
+      "default": 0.01,
+      "choices": []
+    },
+    {
+      "id": "decay2",
+      "label": "Decay 2",
+      "unit": "s",
+      "kind": "float",
+      "min": 0.001,
+      "max": 10,
+      "log_scale": true,
+      "default": 0.1,
+      "choices": []
+    },
+    {
+      "id": "sustain2",
+      "label": "Sustain 2",
+      "unit": "",
+      "kind": "float",
+      "min": 0,
+      "max": 1,
+      "log_scale": false,
+      "default": 0.8,
+      "choices": []
+    },
+    {
+      "id": "release2",
+      "label": "Release 2",
+      "unit": "s",
+      "kind": "float",
+      "min": 0.001,
+      "max": 10,
+      "log_scale": true,
+      "default": 0.2,
       "choices": []
     }
   ]
