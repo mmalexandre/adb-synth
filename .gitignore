@@ -25,5 +25,8 @@ _deps/
 ml/checkpoints/
 __pycache__/
 *.py[cod]
-.tmp/ml/
-.tmp
+.tmp/ml/*.wav
+.tmp/ml-render-build
+.tmp/ml-two-test
+.tmp/plugin-build
+.tmp/plugin-cpu-build
