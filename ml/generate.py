@@ -50,6 +50,9 @@ def main() -> None:
 
     log(f"Preparing {args.count} clips in {args.outdir}")
     args.outdir.mkdir(parents=True, exist_ok=True)
+    for audio_path in args.outdir.glob("*.wav"):
+        audio_path.unlink()
+
     specs = export_schema(args.renderer, args.outdir / "schema.json")
 
     manifest_path = args.outdir / "patches.jsonl"
@@ -64,6 +67,7 @@ def main() -> None:
         [str(args.renderer), "--manifest", str(manifest_path), "--outdir", str(args.outdir)],
         check=True,
     )
+    (args.outdir / "duration.txt").write_text(f"{args.duration}\n")
 
     log(f"Finished rendering {len(patches)} clips in {args.outdir}")
 
